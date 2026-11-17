@@ -510,9 +510,27 @@
     }
     const refreshPool = () => $('poolCount').textContent = pool().length.toLocaleString();
 
+    function shuffled(arr){
+      const out = arr.slice();
+      for (let i = out.length - 1; i > 0; i--) { const j = randInt(i + 1); [out[i], out[j]] = [out[j], out[i]]; }
+      return out;
+    }
+    function buildReel(pool, winner, total, winIdx){
+      const items = new Array(total);
+      let supply = shuffled(pool), supplyIdx = 0, prev = null;
+      for (let i = 0; i < total; i++){
+        if (i === winIdx){ items[i] = winner; prev = winner; continue; }
+        if (supplyIdx >= supply.length){ supply = shuffled(pool); supplyIdx = 0; }
+        let val = supply[supplyIdx++];
+        if (val === prev && supplyIdx < supply.length) val = supply[supplyIdx++];
+        items[i] = val; prev = val;
+      }
+      return items;
+    }
     function newIdle(){
       const p = pool(); idleItems = [];
-      for (let i=0;i<5;i++) idleItems.push(p.length ? p[randInt(p.length)] : '—');
+      const arr = shuffled(p);
+      for (let i=0;i<5;i++) idleItems.push(arr.length ? arr[i % arr.length] : '—');
       showIdle($('cStrip'), idleItems, mode);
     }
     function pushState(){
@@ -527,8 +545,8 @@
       $('msg').textContent = '';
       if (!p.length){ $('msg').textContent = 'No tickets left in the pool. Add tickets or reset the draw.'; return; }
       const winner = p[randInt(p.length)];
-      const total = 70, winIdx = total - 3, items = [];
-      for (let i=0;i<total;i++) items.push(i===winIdx ? winner : p[randInt(p.length)]);
+      const total = 70, winIdx = total - 3;
+      const items = buildReel(p, winner, total, winIdx);
       const dur = Math.max(2, +$('dur').value || 6) * 1000;
       const prize = $('prize').value.trim();
       const sound = $('sound').checked;
