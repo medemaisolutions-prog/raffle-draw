@@ -255,6 +255,20 @@
     do { crypto.getRandomValues(a); } while (a[0] >= max);
     return a[0] % n;
   }
+  // Pick a winner with each digit-length (1-digit, 2-digit, 3-digit, ...) equally likely,
+  // instead of every ticket being equally likely (which favors whichever length has more tickets).
+  function pickEqualByDigits(arr){
+    const groups = new Map();
+    arr.forEach(t => {
+      const n = parseInt(t, 10);
+      const d = Number.isFinite(n) ? String(Math.abs(n)).length : String(t).length;
+      if (!groups.has(d)) groups.set(d, []);
+      groups.get(d).push(t);
+    });
+    const keys = [...groups.keys()];
+    const bucket = groups.get(keys[randInt(keys.length)]);
+    return bucket[randInt(bucket.length)];
+  }
 
   // ---------- sound ----------
   let ac;
@@ -544,7 +558,7 @@
       const p = pool();
       $('msg').textContent = '';
       if (!p.length){ $('msg').textContent = 'No tickets left in the pool. Add tickets or reset the draw.'; return; }
-      const winner = p[randInt(p.length)];
+      const winner = mode === 'range' ? pickEqualByDigits(p) : p[randInt(p.length)];
       const total = 70, winIdx = total - 3;
       const items = buildReel(p, winner, total, winIdx);
       const dur = Math.max(2, +$('dur').value || 6) * 1000;
