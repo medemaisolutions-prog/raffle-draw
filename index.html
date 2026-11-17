@@ -649,7 +649,9 @@
     $('resetWin').onclick = () => {
       if (!resetArmed){ resetArmed = true; $('resetWin').textContent = 'Click again to confirm'; setTimeout(()=>{resetArmed=false;$('resetWin').textContent='Reset draw';},2500); return; }
       resetArmed = false; $('resetWin').textContent = 'Reset draw';
-      winners = []; store.set('winners', winners); renderWinners(); refreshPool(); clearScreen();
+      winners = []; store.set('winners', winners);
+      if (mode === 'range') $('from').value = 1;
+      save(); renderWinners(); refreshPool(); clearScreen();
     };
 
     document.addEventListener('keydown', e => {
