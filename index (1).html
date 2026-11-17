@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raffle Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d0b1a; --panel:#17142b; --panel2:#201c3b; --line:#2f2a52;
+    --gold:#ffc83d; --gold2:#ff9f1c; --pink:#ff4f8b; --green:#4ade80; --text:#f3f0ff; --muted:#a39dc7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:Inter,system-ui,sans-serif;color:var(--text);
+    background:radial-gradient(ellipse at top,#2a1f5c 0%,var(--bg) 60%);
+    min-height:100vh;overflow-x:hidden;
+  }
+  [hidden]{display:none!important}
+
+  /* ---------- CONTROL (backstage) ---------- */
+  .app{display:grid;grid-template-columns:330px 1fr;min-height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);padding:22px;overflow-y:auto;max-height:100vh}
+  aside h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px}
+  aside h2:first-child{margin-top:0}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type=text],input[type=number],textarea{
+    width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;outline:none
+  }
+  input:focus,textarea:focus{border-color:var(--gold)}
+  textarea{min-height:150px;resize:vertical;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .row{display:flex;gap:10px}
+  .row>div{flex:1}
+  .tabs{display:flex;background:var(--panel2);border-radius:10px;padding:4px;margin-bottom:12px}
+  .tabs button{flex:1;border:0;background:none;color:var(--muted);padding:8px;border-radius:8px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .tabs button.on{background:var(--gold);color:#1a1300}
+  .check{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text);margin:10px 0;cursor:pointer}
+  .check input{accent-color:var(--gold);width:16px;height:16px}
+  .pool{font-size:13px;color:var(--muted);margin-top:10px}
+  .pool b{color:var(--gold)}
+  .btn{border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;font-size:13px;cursor:pointer;background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+  .btn:hover{border-color:var(--gold)}
+  .btn.small{padding:6px 10px;font-size:12px}
+  .btn.gold{background:var(--gold);color:#1a1300;border-color:var(--gold)}
+  .winners{list-style:none;margin-top:6px}
+  .winners li{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--panel2);border-radius:8px;margin-bottom:6px;font-size:14px}
+  .winners li span:first-child{color:var(--muted);font-size:12px}
+  .winners li b{color:var(--gold)}
+  .empty{font-size:13px;color:var(--muted);font-style:italic}
+
+  .ctl{display:flex;flex-direction:column;align-items:center;padding:24px 20px 40px;gap:18px}
+  .status{width:min(680px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#666;flex:none}
+  .status.on .dot{background:var(--green);box-shadow:0 0 10px var(--green)}
+  .status .txt{flex:1;min-width:200px;font-size:14px}
+  .status .txt small{display:block;color:var(--muted);font-size:12px;margin-top:3px;line-height:1.45}
+  .status code{background:var(--panel2);padding:1px 6px;border-radius:5px;color:var(--gold)}
+  .previewLbl{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+  .preview{width:min(680px,100%);border:1px dashed var(--line);border-radius:18px;padding:22px 16px;display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.18)}
+  .preview .title{font-size:clamp(30px,4vw,52px)}
+  .preview .prize{margin:4px 0 16px;font-size:14px}
+  .preview .machine{width:min(460px,100%);padding:12px}
+  .result{width:min(680px,100%);background:linear-gradient(90deg,rgba(255,200,61,.15),rgba(255,79,139,.12));border:1px solid var(--gold);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .result .w{flex:1;font-size:15px}
+  .result .w b{font-family:'Bebas Neue',sans-serif;font-size:34px;color:var(--gold);letter-spacing:.04em;margin-left:6px;vertical-align:middle}
+  .hint{font-size:13px;color:var(--muted);text-align:center}
+  .msg{color:var(--pink);font-size:14px;min-height:1.2em;text-align:center}
+
+  /* ---------- shared stage ---------- */
+  .title{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,7vw,110px);letter-spacing:.04em;line-height:1;text-align:center;
+    background:linear-gradient(180deg,#fff 0%,var(--gold) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .prize{color:var(--muted);font-size:clamp(14px,1.8vw,24px);margin:10px 0 30px;text-align:center;min-height:1.3em}
+  .prize b{color:var(--pink)}
+  .machine{position:relative;width:min(620px,92vw);padding:18px;border-radius:28px;
+    background:linear-gradient(180deg,#3a2f74,#221b47);box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,255,255,.12)}
+  .lights{position:absolute;inset:6px;border-radius:24px;pointer-events:none}
+  .lights i{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);opacity:.35}
+  .machine.spinning .lights i{animation:blink .4s infinite alternate}
+  @keyframes blink{to{opacity:1}}
+  .window{position:relative;height:300px;overflow:hidden;border-radius:16px;background:#0a0816;border:3px solid #000}
+  .window::before,.window::after{content:"";position:absolute;left:0;right:0;height:100px;z-index:2;pointer-events:none}
+  .window::before{top:0;background:linear-gradient(#0a0816,transparent)}
+  .window::after{bottom:0;background:linear-gradient(transparent,#0a0816)}
+  .marker{position:absolute;left:0;right:0;top:50%;height:100px;transform:translateY(-50%);z-index:3;pointer-events:none;
+    border-top:3px solid var(--gold);border-bottom:3px solid var(--gold);box-shadow:0 0 24px rgba(255,200,61,.35)}
+  .marker::before,.marker::after{content:"";position:absolute;top:50%;transform:translateY(-50%);border:14px solid transparent}
+  .marker::before{left:-2px;border-left-color:var(--gold)}
+  .marker::after{right:-2px;border-right-color:var(--gold)}
+  .strip{position:absolute;left:0;right:0;top:0;will-change:transform}
+  .ticket{height:100px;display:flex;align-items:center;justify-content:center;padding:0 30px}
+  .ticket div{width:100%;height:76px;display:flex;align-items:center;justify-content:center;gap:14px;border-radius:12px;
+    background:linear-gradient(90deg,#fff4d6,#ffe39a);color:#2b1d00;position:relative;
+    font-family:'Bebas Neue',sans-serif;font-size:44px;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ticket div::before,.ticket div::after{content:"";position:absolute;top:50%;width:22px;height:22px;border-radius:50%;background:#0a0816;transform:translateY(-50%)}
+  .ticket div::before{left:-11px}.ticket div::after{right:-11px}
+  .ticket small{font-family:Inter,sans-serif;font-size:12px;font-weight:700;letter-spacing:.15em;color:#9a6b00}
+  .ticket.long div{font-size:30px}
+
+  .draw{border:0;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,3.4vw,40px);letter-spacing:.08em;
+    padding:14px 64px;border-radius:999px;color:#1a1300;background:linear-gradient(180deg,var(--gold),var(--gold2));
+    box-shadow:0 8px 0 #b36b00,0 18px 40px rgba(255,159,28,.35);transition:transform .08s}
+  .draw:active{transform:translateY(4px);box-shadow:0 4px 0 #b36b00}
+  .draw:disabled{filter:grayscale(.6) brightness(.7);cursor:not-allowed}
+
+  /* ---------- DISPLAY (audience) ---------- */
+  .display{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:30px 20px}
+  body.started.role-display{cursor:none}
+  .start{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(5,3,15,.92);cursor:pointer;text-align:center;padding:20px}
+  .start .big{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,5vw,64px);color:var(--gold);letter-spacing:.05em}
+  .start p{color:var(--muted);font-size:15px;max-width:520px;line-height:1.5}
+  .overlay{position:fixed;inset:0;background:rgba(5,3,15,.82);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:20;flex-direction:column;padding:20px}
+  .overlay.show{display:flex;animation:fade .3s}
+  @keyframes fade{from{opacity:0}}
+  .overlay .lbl{font-size:clamp(16px,2vw,26px);letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+  .overlay .who{font-family:'Bebas Neue',sans-serif;font-size:clamp(70px,15vw,220px);line-height:1;color:var(--gold);text-align:center;
+    text-shadow:0 0 40px rgba(255,200,61,.5);animation:pop .6s cubic-bezier(.2,1.6,.4,1);word-break:break-word}
+  @keyframes pop{from{transform:scale(.3);opacity:0}}
+  .overlay .pz{font-size:clamp(16px,2.2vw,30px);color:var(--pink);margin-top:12px;text-align:center}
+  canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:30}
+
+  @media (max-width:860px){
+    .app{grid-template-columns:1fr}
+    aside{max-height:none;border-right:0;border-bottom:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ======================= BACKSTAGE CONTROL ======================= -->
+<div class="app" id="control" hidden>
+  <aside>
+    <h2>Event</h2>
+    <label for="evTitle">Title on screen</label>
+    <input type="text" id="evTitle" value="Raffle Draw">
+    <div style="height:10px"></div>
+    <label for="prize">Prize for this draw (optional)</label>
+    <input type="text" id="prize" placeholder="e.g. 1st Prize — Smart TV">
+
+    <h2>Tickets</h2>
+    <div class="tabs">
+      <button id="tabRange" class="on">Number range</button>
+      <button id="tabList">Names / list</button>
+    </div>
+    <div id="rangeBox">
+      <div class="row">
+        <div><label for="from">From</label><input type="number" id="from" value="1" min="0"></div>
+        <div><label for="to">To</label><input type="number" id="to" value="500" min="0"></div>
+      </div>
+      <div style="height:10px"></div>
+      <label for="pad">Digits (zero-pad, e.g. 3 → 007)</label>
+      <input type="number" id="pad" value="3" min="0" max="10">
+    </div>
+    <div id="listBox" hidden>
+      <label for="list">One ticket or name per line (paste from Excel/Sheets)</label>
+      <textarea id="list" placeholder="Ada Okafor&#10;Tunde Bello&#10;Ticket 0045&#10;..."></textarea>
+    </div>
+    <label class="check"><input type="checkbox" id="removeWin" checked> Remove winners from future draws</label>
+    <label class="check"><input type="checkbox" id="sound" checked> Sound effects</label>
+    <label for="dur">Spin time: <b id="durVal" style="color:var(--gold)">6</b> seconds</label>
+    <input type="range" id="dur" value="6" min="2" max="20" step="1" style="width:100%;accent-color:var(--gold)">
+    <div class="pool">Tickets left in the pool: <b id="poolCount">0</b></div>
+
+    <h2>Winners</h2>
+    <ul class="winners" id="winners"></ul>
+    <div class="row" style="margin-top:8px">
+      <button class="btn small" id="copyWin">Copy list</button>
+      <button class="btn small" id="resetWin">Reset draw</button>
+    </div>
+  </aside>
+
+  <main class="ctl">
+    <div class="status" id="status">
+      <span class="dot"></span>
+      <div class="txt"><span id="statusTxt">Audience screen: not connected</span>
+        <small id="statusHelp">Open this same page in a second window with <code>#display</code> at the end of the address, then drag that window onto the projector.</small>
+      </div>
+      <button class="btn small gold" id="openDisplay">Open audience screen</button>
+    </div>
+
+    <div class="previewLbl">Preview · what the audience sees</div>
+    <div class="preview">
+      <div class="title" id="cTitle">Raffle Draw</div>
+      <div class="prize" id="cPrize"></div>
+      <div class="machine" id="cMachine">
+        <div class="lights"></div>
+        <div class="window"><div class="strip" id="cStrip"></div><div class="marker"></div></div>
+      </div>
+    </div>
+
+    <div class="result" id="result" hidden>
+      <div class="w">Winner:<b id="resultWho"></b> <span id="resultPz" style="color:var(--muted);font-size:13px"></span></div>
+      <button class="btn small" id="clearBtn">Clear from screen</button>
+    </div>
+
+    <button class="draw" id="drawBtn">Draw</button>
+    <div class="msg" id="msg"></div>
+    <div class="hint">Press <b>Space</b> to draw · <b>Esc</b> clears the winner from the audience screen</div>
+  </main>
+</div>
+
+<!-- ======================= AUDIENCE DISPLAY ======================= -->
+<div class="display" id="display" hidden>
+  <div class="title" id="dTitle">Raffle Draw</div>
+  <div class="prize" id="dPrize"></div>
+  <div class="machine" id="dMachine">
+    <div class="lights"></div>
+    <div class="window"><div class="strip" id="dStrip"></div><div class="marker"></div></div>
+  </div>
+</div>
+<div class="start" id="start" hidden>
+  <div class="big">Click to start audience screen</div>
+  <p>Drag this window onto the projector first, then click anywhere. It will go fullscreen and turn on sound. Draws are controlled from the backstage window.</p>
+</div>
+<div class="overlay" id="overlay">
+  <div class="lbl">🎉 The winner is 🎉</div>
+  <div class="who" id="who"></div>
+  <div class="pz" id="pz"></div>
+</div>
+<canvas id="confetti"></canvas>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const TICKET_H = 100;
+  const ROLE = location.hash === '#display' ? 'display' : 'control';
+  document.body.classList.add('role-' + ROLE);
+
+  // ---------- messaging between the two windows ----------
+  const listeners = [];
+  let bc = null;
+  try { bc = new BroadcastChannel('raffle-draw-v2'); bc.onmessage = e => listeners.forEach(f => f(e.data)); } catch(e){}
+  if (!bc) addEventListener('storage', e => {
+    if (e.key === 'raffle_bus' && e.newValue) { try { listeners.forEach(f => f(JSON.parse(e.newValue).m)); } catch(_){} }
+  });
+  function send(m){
+    if (bc) { try { bc.postMessage(m); } catch(e){} }
+    else { try { localStorage.setItem('raffle_bus', JSON.stringify({m, n: Math.random()})); } catch(e){} }
+  }
+  const onMsg = f => listeners.push(f);
+
+  // ---------- storage ----------
+  const store = {
+    get(k,d){ try{ const v = localStorage.getItem('raffle_'+k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
+    set(k,v){ try{ localStorage.setItem('raffle_'+k, JSON.stringify(v)); }catch(e){} }
+  };
+
+  // ---------- fair randomness ----------
+  function randInt(n){
+    const max = Math.floor(0x100000000 / n) * n;
+    const a = new Uint32Array(1);
+    do { crypto.getRandomValues(a); } while (a[0] >= max);
+    return a[0] % n;
+  }
+
+  // ---------- sound ----------
+  let ac;
+  function unlockAudio(){ try{ ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); }catch(e){} }
+  function tone(freq=900, len=0.03, vol=0.08){
+    try{
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type='square'; o.frequency.value=freq;
+      g.gain.setValueAtTime(vol, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+len);
+      o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+len);
+    }catch(e){}
+  }
+  const fanfare = () => [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.25,0.12), i*130));
+
+  // ---------- reel ----------
+  function ticketEl(text, mode){
+    const d = document.createElement('div');
+    d.className = 'ticket' + (String(text).length > 12 ? ' long' : '');
+    const inner = document.createElement('div');
+    if (mode === 'range'){ const s=document.createElement('small'); s.textContent='NO.'; inner.appendChild(s); }
+    inner.appendChild(document.createTextNode(text));
+    d.appendChild(inner);
+    return d;
+  }
+  function fillStrip(strip, items, mode){
+    strip.innerHTML = '';
+    items.forEach(t => strip.appendChild(ticketEl(t, mode)));
+  }
+  function showIdle(strip, items, mode){
+    fillStrip(strip, items, mode);
+    strip.style.transform = `translateY(${-TICKET_H}px)`;
+  }
+  function spinReel({strip, machine, items, winIdx, dur, mode, withSound, done}){
+    fillStrip(strip, items, mode);
+    machine.classList.add('spinning');
+    const endY = -((winIdx - 1) * TICKET_H);
+    const ease = t => 1 - Math.pow(1 - t, 4);
+    let lastIdx = 0, t0 = null;
+    function frame(ts){
+      if (t0 === null) t0 = ts;
+      const t = Math.min(1, (ts - t0) / dur);
+      const y = endY * ease(t);
+      strip.style.transform = `translateY(${y}px)`;
+      const idx = Math.floor(-y / TICKET_H);
+      if (idx !== lastIdx){ lastIdx = idx; if (withSound) tone(); }
+      if (t < 1) requestAnimationFrame(frame);
+      else { machine.classList.remove('spinning'); done && done(); }
+    }
+    requestAnimationFrame(frame);
+  }
+  function makeLights(){
+    document.querySelectorAll('.lights').forEach(L => {
+      const n = 14;
+      for (let i=0;i<n;i++) for (const side of ['top','bottom']){
+        const el = document.createElement('i');
+        el.style.left = (4 + i*(92/(n-1))) + '%';
+        el.style[side] = '-1px';
+        el.style.animationDelay = ((i%2)*0.2) + 's';
+        L.appendChild(el);
+      }
+    });
+  }
+  function setPrizeLine(el, v){
+    el.innerHTML = '';
+    if (v){ el.append('Now drawing: '); const b=document.createElement('b'); b.textContent=v; el.appendChild(b); }
+  }
+
+  // ---------- confetti ----------
+  const cv = $('confetti'), cx = cv.getContext('2d');
+  let parts = [], confettiRunning = false;
+  function sizeCanvas(){ cv.width = innerWidth; cv.height = innerHeight; }
+  addEventListener('resize', sizeCanvas); sizeCanvas();
+  function confetti(){
+    const colors = ['#ffc83d','#ff4f8b','#6ee7ff','#a78bfa','#4ade80','#ffffff'];
+    for (let i=0;i<280;i++){
+      parts.push({ x: innerWidth/2 + (Math.random()-.5)*240, y: innerHeight*0.45,
+        vx: (Math.random()-.5)*24, vy: -Math.random()*20-6, w: 6+Math.random()*8, h: 8+Math.random()*10,
+        r: Math.random()*6, vr:(Math.random()-.5)*.3, c: colors[(Math.random()*colors.length)|0], life: 0 });
+    }
+    if (!confettiRunning){ confettiRunning = true; requestAnimationFrame(stepConfetti); }
+  }
+  function stepConfetti(){
+    cx.clearRect(0,0,cv.width,cv.height);
+    parts.forEach(p => {
+      p.vy += 0.45; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life++;
+      cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle = p.c;
+      cx.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.life*0.1))); cx.restore();
+    });
+    parts = parts.filter(p => p.y < cv.height + 40);
+    if (parts.length) requestAnimationFrame(stepConfetti);
+    else { confettiRunning = false; cx.clearRect(0,0,cv.width,cv.height); }
+  }
+
+  makeLights();
+  if (ROLE === 'display') runDisplay(); else runControl();
+
+  /* =================================================================
+     AUDIENCE DISPLAY — shows only the draw, takes orders from backstage
+     ================================================================= */
+  function runDisplay(){
+    document.title = 'Raffle Draw — Audience screen';
+    $('display').hidden = false;
+    $('start').hidden = false;
+    let soundOn = true;
+
+    $('start').addEventListener('click', async () => {
+      unlockAudio();
+      try { await document.documentElement.requestFullscreen(); } catch(e){}
+      $('start').hidden = true;
+      document.body.classList.add('started');
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'f' || e.key === 'F'){
+        unlockAudio();
+        (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(()=>{});
+      } else if (e.code === 'Space'){ e.preventDefault(); send({type:'drawRequest'}); }
+    });
+
+    onMsg(m => {
+      if (!m || !m.type) return;
+      if (m.type === 'state'){
+        $('dTitle').textContent = m.title || 'Raffle Draw';
+        setPrizeLine($('dPrize'), m.prize);
+        soundOn = m.sound;
+        if (!m.spinning && !$('overlay').classList.contains('show')) showIdle($('dStrip'), m.idle, m.mode);
+      } else if (m.type === 'spin'){
+        $('overlay').classList.remove('show');
+        setPrizeLine($('dPrize'), m.prize);
+        spinReel({ strip:$('dStrip'), machine:$('dMachine'), items:m.items, winIdx:m.winIdx, dur:m.dur, mode:m.mode,
+          withSound: m.sound, done: () => setTimeout(() => {
+            if (m.sound) fanfare();
+            $('who').textContent = m.winner;
+            $('pz').textContent = m.prize || '';
+            $('overlay').classList.add('show');
+            confetti();
+          }, 500) });
+      } else if (m.type === 'clear'){
+        $('overlay').classList.remove('show');
+      }
+    });
+
+    // heartbeat so backstage knows we're here
+    const hello = () => send({type:'hello'});
+    hello(); setInterval(hello, 1500);
+  }
+
+  /* =================================================================
+     BACKSTAGE CONTROL — settings, draws, winners
+     ================================================================= */
+  function runControl(){
+    $('control').hidden = false;
+    let mode = 'range', winners = [], spinning = false, lastHello = 0, idleItems = [];
+    const displayConnected = () => Date.now() - lastHello < 4500;
+
+    // pool
+    const fmt = n => String(n).padStart(+$('pad').value || 0, '0');
+    function fullPool(){
+      if (mode === 'range'){
+        let a = parseInt($('from').value,10), b = parseInt($('to').value,10);
+        if (isNaN(a) || isNaN(b)) return [];
+        if (a > b) [a,b] = [b,a];
+        if (b - a > 200000) b = a + 200000;
+        const out = []; for (let i=a;i<=b;i++) out.push(fmt(i)); return out;
+      }
+      const seen = new Set();
+      return $('list').value.split(/\r?\n/).map(s=>s.trim()).filter(s=>s && !seen.has(s) && seen.add(s));
+    }
+    function pool(){
+      const all = fullPool();
+      if (!$('removeWin').checked) return all;
+      const won = new Set(winners.map(w=>w.who));
+      return all.filter(x=>!won.has(x));
+    }
+    const refreshPool = () => $('poolCount').textContent = pool().length.toLocaleString();
+
+    function newIdle(){
+      const p = pool(); idleItems = [];
+      for (let i=0;i<5;i++) idleItems.push(p.length ? p[randInt(p.length)] : '—');
+      showIdle($('cStrip'), idleItems, mode);
+    }
+    function pushState(){
+      send({ type:'state', title:$('evTitle').value, prize:$('prize').value.trim(), idle:idleItems, mode,
+             sound:$('sound').checked, spinning });
+    }
+
+    // draw
+    function draw(){
+      if (spinning) return;
+      const p = pool();
+      $('msg').textContent = '';
+      if (!p.length){ $('msg').textContent = 'No tickets left in the pool. Add tickets or reset the draw.'; return; }
+      const winner = p[randInt(p.length)];
+      const total = 70, winIdx = total - 3, items = [];
+      for (let i=0;i<total;i++) items.push(i===winIdx ? winner : p[randInt(p.length)]);
+      const dur = Math.max(2, +$('dur').value || 6) * 1000;
+      const prize = $('prize').value.trim();
+      const sound = $('sound').checked;
+
+      spinning = true;
+      $('drawBtn').disabled = true;
+      $('result').hidden = true;
+      send({ type:'spin', items, winIdx, dur, winner, prize, mode, sound });
+
+      // backstage preview mirrors the spin; plays sound only if no audience screen is connected
+      spinReel({ strip:$('cStrip'), machine:$('cMachine'), items, winIdx, dur, mode,
+        withSound: sound && !displayConnected(), done: () => {
+          winners.push({who: winner, prize});
+          store.set('winners', winners);
+          renderWinners(); refreshPool();
+          setTimeout(() => {
+            if (sound && !displayConnected()) fanfare();
+            $('resultWho').textContent = winner;
+            $('resultPz').textContent = prize ? '· ' + prize : '';
+            $('result').hidden = false;
+            spinning = false;
+            $('drawBtn').disabled = false;
+          }, 500);
+        } });
+    }
+    function clearScreen(){ send({type:'clear'}); $('result').hidden = true; newIdle(); pushState(); }
+
+    function renderWinners(){
+      const ul = $('winners'); ul.innerHTML = '';
+      if (!winners.length){ ul.innerHTML = '<li class="empty" style="background:none;padding:0">No winners yet</li>'; return; }
+      winners.forEach((w,i) => {
+        const li = document.createElement('li');
+        const a = document.createElement('span'); a.textContent = '#' + (i+1) + (w.prize ? ' · ' + w.prize : '');
+        const b = document.createElement('b'); b.textContent = w.who;
+        li.append(a,b); ul.appendChild(li);
+      });
+    }
+
+    // connection status
+    onMsg(m => {
+      if (!m) return;
+      if (m.type === 'hello'){ const was = displayConnected(); lastHello = Date.now(); if (!was){ updateStatus(); pushState(); } }
+      else if (m.type === 'drawRequest'){
+        if (!$('result').hidden){ send({type:'clear'}); $('result').hidden = true; }
+        draw();
+      }
+    });
+    function updateStatus(){
+      const on = displayConnected();
+      $('status').classList.toggle('on', on);
+      $('statusTxt').textContent = on ? 'Audience screen: connected ✓' : 'Audience screen: not connected';
+      $('statusHelp').hidden = on;
+      $('openDisplay').hidden = on;
+    }
+    setInterval(updateStatus, 1000);
+
+    $('openDisplay').onclick = () => {
+      const url = location.href.split('#')[0] + '#display';
+      let w = null;
+      try { w = window.open(url, 'raffle-display', 'popup,width=1100,height=720'); } catch(e){}
+      if (!w) $('msg').textContent = 'Couldn’t open a window from here. Open a new browser window yourself and go to this page’s address with #display on the end.';
+    };
+
+    // settings
+    function setMode(m){
+      mode = m;
+      $('tabRange').classList.toggle('on', m==='range');
+      $('tabList').classList.toggle('on', m==='list');
+      $('rangeBox').hidden = m!=='range';
+      $('listBox').hidden = m!=='list';
+      save(); refreshPool(); if (!spinning) newIdle(); pushState();
+    }
+    function save(){
+      store.set('cfg', { mode, title:$('evTitle').value, prize:$('prize').value, from:$('from').value, to:$('to').value,
+        pad:$('pad').value, list:$('list').value, removeWin:$('removeWin').checked, sound:$('sound').checked, dur:$('dur').value });
+    }
+    const applyTitle = () => $('cTitle').textContent = $('evTitle').value || 'Raffle Draw';
+    const applyPrize = () => setPrizeLine($('cPrize'), $('prize').value.trim());
+
+    $('tabRange').onclick = () => setMode('range');
+    $('tabList').onclick = () => setMode('list');
+    ['from','to','pad','list','removeWin'].forEach(id => $(id).addEventListener('input', () => {
+      save(); refreshPool(); if (!spinning){ newIdle(); pushState(); } }));
+    $('sound').addEventListener('input', () => { save(); pushState(); });
+    $('dur').addEventListener('input', () => { $('durVal').textContent = $('dur').value; save(); });
+    $('evTitle').addEventListener('input', () => { applyTitle(); save(); pushState(); });
+    $('prize').addEventListener('input', () => { applyPrize(); save(); pushState(); });
+    document.querySelectorAll('input[type=number]').forEach(el => el.addEventListener('wheel', () => el.blur(), {passive:true}));
+
+    $('drawBtn').onclick = () => { unlockAudio(); draw(); };
+    $('clearBtn').onclick = clearScreen;
+
+    $('copyWin').onclick = async () => {
+      const txt = winners.map((w,i)=>`${i+1}. ${w.who}${w.prize ? ' — ' + w.prize : ''}`).join('\n') || 'No winners yet';
+      try{ await navigator.clipboard.writeText(txt); $('copyWin').textContent='Copied!'; }
+      catch(e){ $('copyWin').textContent='Copy failed'; }
+      setTimeout(()=>$('copyWin').textContent='Copy list', 1500);
+    };
+    let resetArmed = false;
+    $('resetWin').onclick = () => {
+      if (!resetArmed){ resetArmed = true; $('resetWin').textContent = 'Click again to confirm'; setTimeout(()=>{resetArmed=false;$('resetWin').textContent='Reset draw';},2500); return; }
+      resetArmed = false; $('resetWin').textContent = 'Reset draw';
+      winners = []; store.set('winners', winners); renderWinners(); refreshPool(); clearScreen();
+    };
+
+    document.addEventListener('keydown', e => {
+      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (e.code === 'Space'){ e.preventDefault(); unlockAudio(); if (!$('result').hidden){ send({type:'clear'}); $('result').hidden = true; } draw(); }
+      else if (e.key === 'Escape') clearScreen();
+    });
+
+    // init
+    const cfg = store.get('cfg', null);
+    if (cfg){
+      $('evTitle').value = cfg.title ?? 'Raffle Draw'; $('prize').value = cfg.prize ?? '';
+      $('from').value = cfg.from ?? 1; $('to').value = cfg.to ?? 500; $('pad').value = cfg.pad ?? 3;
+      $('list').value = cfg.list ?? ''; $('removeWin').checked = cfg.removeWin ?? true;
+      $('sound').checked = cfg.sound ?? true;
+      const d = parseInt(cfg.dur, 10); $('dur').value = (d >= 2 && d <= 20) ? d : 6;
+      mode = cfg.mode || 'range';
+    }
+    $('durVal').textContent = $('dur').value;
+    winners = store.get('winners', []);
+    applyTitle(); applyPrize(); renderWinners(); updateStatus();
+    setMode(mode);
+  }
+})();
+</script>
+</body>
+</html>
